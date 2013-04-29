@@ -10,11 +10,12 @@ class Person:
         self.kids = []
 
     def add_parent(self, parent):
-        if parent.gender == 'F':
-            self.mother = parent
-        else:
-            self.father = parent
-        parent.kids.append(self)
+        if isinstance(parent, Person):
+            if parent.gender == 'F':
+                self.mother = parent
+            else:
+                self.father = parent
+            parent.kids.append(self)
 
     def children(self, gender='both'):
         if not gender == 'both':
@@ -23,7 +24,7 @@ class Person:
         else:
             return self.kids
 
-    def get_siblings(self, gender):
+    def get_siblings_by_gender(self, gender):
         if hasattr(self, "mother"):
             if hasattr(self, "father"):
                 siblings = list(set(self.mother.children(gender) +
@@ -38,10 +39,10 @@ class Person:
         return list(set(siblings) - {self})
 
     def get_brothers(self):
-        return self.get_siblings('M')
+        return self.get_siblings_by_gender('M')
 
     def get_sisters(self):
-        return self.get_siblings('F')
+        return self.get_siblings_by_gender('F')
 
     def is_direct_successor(self, other_person):
         return other_person in self.children()
