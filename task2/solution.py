@@ -1,14 +1,11 @@
-from collections import OrderedDict
+from collections import defaultdict, OrderedDict
 
 
-def groupby(func, sec):
-    result = {}
-    for i in sec:
-        if func(i) in result:
-            result[func(i)].append(i)
-        else:
-            result[func(i)] = [i]
-    return result
+def groupby(func, seq):
+    grouped_elements = defaultdict(list)
+    for element in seq:
+        grouped_elements[func(element)].append(element)
+    return dict(grouped_elements)
 
 
 def composition(func1, func2):
@@ -16,11 +13,11 @@ def composition(func1, func2):
 
 
 def iterate(func):
-    composing = lambda x: x
-    yield composing
+    composing_function = lambda x: x
+    yield composing_function
     while True:
-        yield composition(func, composing)
-        composing = composition(func, composing)
+        yield composition(func, composing_function)
+        composing_function = composition(func, composing_function)
 
 
 def zip_with(func, *iterables):
@@ -31,6 +28,8 @@ def zip_with(func, *iterables):
 
 def cache(func, cache_size):
     storage = OrderedDict({})
+    if cache_size <= 0:
+        return func
 
     def func_cached(*args):
         if args in storage:
