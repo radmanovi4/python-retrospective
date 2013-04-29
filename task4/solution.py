@@ -1,67 +1,104 @@
-import re
-
-
-indexes = {"A3": 21, "B3": 25, "C3": 29, "A2": 53,
-           "B2": 57, "C2": 61, "A1": 85, "B1": 89, "C1": 93}
-
-columns = [["A1", "A2", "A3"], ["B1", "B2", "B3"], ["C1", "C2", "C3"]]
-
-rows = [["A3", "B3", "C3"], ["A2", "B2", "C2"], ["A1", "B1", "C1"]]
-
-diagonals = [["A3", "B2", "C1"], ["A1", "B2", "C3"]]
-
-first_part = "\n  -------------\n3 |   |   |   |\n  -------------\n"
-second_part = "2 |   |   |   |\n  -------------\n1 |   | "
-third_part = "  |   |\n  -------------\n    A   B   C  \n"
-
-
 class TicTacToeBoard:
+    BOARD_FORMAT = '\n  -------------\n' +\
+                   '3 | {A3} | {B3} | {C3} |\n' +\
+                   '  -------------\n' +\
+                   '2 | {A2} | {B2} | {C2} |\n' +\
+                   '  -------------\n' +\
+                   '1 | {A1} | {B1} | {C1} |\n' +\
+                   '  -------------\n' +\
+                   '    A   B   C  \n'
+
+    __WINNING_LINES = (
+        ((1, 1), (1, 0)),
+        ((1, 1), (0, 1)),
+        ((1, 1), (1, 1)),
+        ((3, 1), (-1, 1)),
+        ((3, 1), (0, 1)),
+        ((3, 3), (-1, 0)),
+        ((2, 1), (0, 1)),
+        ((3, 2), (-1, 0)),
+    )
+
     def __init__(self):
-        self.matrix = first_part + second_part + third_part
-        self.status = "Game in progress."
-        self.last_played = ""
+        self.__game_board = {(row, column): ' '
+                             for row in [1, 2, 3]
+                             for column in [1, 2, 3]}
+        self._next_turn = None
+        self._winner = None
 
-    def __str__(self):
-        return self.matrix
+    def __check_line(self, start_index, delta):
+        position = start_index
+        player = None
 
-    def __getitem__(self, key):
-        return self.matrix[indexes[key]]
+        while 1 <= position[0] <= 3 and 1 <= position[1] <= 3:
+            if player is not None and self.__game_board[position] != player:
+                return None
 
-    def __setitem__(self, key, sign):
-        if re.match("^[ABC][123]$", key) is None:
-            raise InvalidKey
-        if self.matrix[indexes[key]] != ' ':
-            raise InvalidMove
-        if re.match("^[XO]$", sign) is None:
-            raise InvalidValue
-        if self.last_played == sign:
-            raise NotYourTurn
-        self.matrix = change_string(self.matrix, indexes[key], sign)
-        self.last_played = sign
-        if self.status == "Game in progress.":
-            for keys in [rows, columns, diagonals]:
-                if check_keys(self.matrix, keys, sign):
-                    self.status = "{} wins!".format(sign)
-                    return
-            if not ' ' in map(lambda x: self.matrix[indexes[x]],
-                              list(indexes.keys())):
-                self.status = "Draw!"
+            player = self.__game_board[position]
+            position = position[0] + delta[0], position[1] + delta[1]
+
+        return player if player is not ' ' else None
+
+    def __check_win(self):
+        for win_line in self.__WINNING_LINES:
+            check_result = self.__check_line(*win_line)
+            if check_result is not None:
+                return check_result
+        return None
+
+    def __all_filled(self):
+        return all(field != ' ' for field in self.__game_board.values())
 
     def game_status(self):
-        return self.status
+        if self._winner is not None:
+            return "{} wins!".format(self._winner)
+        if self.__all_filled():
+            return "Draw!"
+        return "Game in progress."
+
+    @staticmethod
+    def _parse_index(index):
+        if len(index) != 2:
+            raise InvalidKey("The length of the key must be 2 symbols")
+
+        column = ord(index[0]) - ord('A') + 1
+        row = int(index[1])
+
+        if not 1 <= column <= 3 or not 1 <= row <= 3:
+            raise InvalidKey("The first symbol should be A, B or C, and the "
+                             "second one should be 1, 2 or 3.")
+
+        return (row, column)
+
+    def __getitem__(self, index):
+        index_tuple = TicTacToeBoard._parse_index(index)
+        return self.__game_board[index_tuple]
+
+    def __setitem__(self, index, value):
+        if value not in ('X', 'O'):
+            raise InvalidValue("The only allowed values are X and O")
+
+        if self._next_turn is not None and self._next_turn != value:
+            raise NotYourTurn("The {} player should play this turn"
+                              .format(self._next_turn))
+
+        index_tuple = TicTacToeBoard._parse_index(index)
+
+        if self.__game_board[index_tuple] != ' ':
+            raise InvalidMove("The field {} is already set.".format(index))
+
+        self.__game_board[index_tuple] = value
+        self._next_turn = 'X' if value == 'O' else 'O'
+        self._winner = self.__check_win()
+
+    def __str__(self):
+        board_data = {chr(column + ord('A') - 1) + str(row): value
+                      for (row, column), value in self.__game_board.items()}
+        return self.BOARD_FORMAT.format(**board_data)
 
 
-def change_string(string, index, new_char):
-    list_of_chars = list(string)
-    list_of_chars[index] = new_char
-    return ''.join(list_of_chars)
-
-
-def check_keys(matrix, keys, sign):
-    for row in keys:
-        if len([elem for elem in row if matrix[indexes[elem]] == sign]) == 3:
-            return True
-    return False
+class InvalidKey(Exception):
+    pass
 
 
 class InvalidMove(Exception):
@@ -69,10 +106,6 @@ class InvalidMove(Exception):
 
 
 class InvalidValue(Exception):
-    pass
-
-
-class InvalidKey(Exception):
     pass
 
 
